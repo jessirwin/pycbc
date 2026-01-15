@@ -17,7 +17,8 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""Generate a bank of templates using a brute force stochastic method.
+"""
+Generate a bank of templates using a brute force stochastic method.
 EDITING: include tidal parameters
 """
 import numpy
@@ -89,6 +90,8 @@ parser.add_argument('--use-trimmed-buffer', action='store_true',
 
 
 args = parser.parse_args()
+
+print('local version')
 
 pycbc.init_logging(args.verbose)
 numpy.random.seed(args.seed)
