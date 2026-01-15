@@ -18,6 +18,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """Generate a bank of templates using a brute force stochastic method.
+EDITING: include tidal parameters
 """
 import numpy
 import logging
