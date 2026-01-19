@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# this is ready to be run on command line with env activated
+
 # Copyright (C) 2017 Alex Nitz, Duncan Macleod
 #               2022 Shichao Wu
 #
