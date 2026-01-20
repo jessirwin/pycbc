@@ -21,7 +21,7 @@
 Generate a bank of templates using a brute force stochastic method.
 EDITING: include tidal parameters
 """
-import numpy
+import numpy as np
 import logging
 import argparse
 import numpy.random
@@ -446,15 +446,11 @@ def get_tidal_components(lambdatilde,mass1,mass2):
 
 def draw(rtype):
 
-	# calling args
-	print('in draw')
-	print(args.params)
-	print(args.min)
-	print(args.max)
-	exit(0)
-
     if rtype == 'uniform':
         if args.input_config is None:
+
+            # still want to draw bank in our original parameterisation
+
             params = {name: numpy.random.uniform(pmin, pmax, size=size)
                       for name, pmin, pmax in zip(args.params, args.min, args.max)}
         else:
@@ -468,6 +464,9 @@ def draw(rtype):
                     params[k] = numpy.array([static_args[k]]*size)
 
     elif rtype == 'kde':
+
+        # not relevant rn
+
         trail = 300
         if trail > len(bank):
             trail = len(bank)
@@ -497,12 +496,14 @@ def draw(rtype):
     # Filter out stuff (kde method may also generate samples outside boundaries).
     l = None
     if args.input_config is None:
+        # this is true for us rn
+        # keep everything in boundaries
         for name, pmin, pmax in zip(args.params, args.min, args.max):
             nl = (params[name] < pmax) & (params[name] > pmin)
             l = (nl & l) if l is not None else nl
 
         if args.max_q:
-            q =  numpy.maximum(params['mass1'] / params['mass2'], params['mass2'] / params['mass1'])
+            q = numpy.maximum(params['mass1'] / params['mass2'], params['mass2'] / params['mass1'])
             l &= q < args.max_q
 
         if args.max_mtotal:
@@ -523,32 +524,40 @@ def draw(rtype):
         l = dists_joint.contains(params)
 
     params = {k: params[k][l] for k in params}
+	# M, q, lambda tilde, approximant.
+
     return params
 
 def cdraw(rtype, ts, te):
 
-	# rtype is uniform 
-
-    ########################
-    # reparameterise here
-    ########################
-
-    # if masses are not components, get components 
-    # need to change max and min limits
-    m1,m2 = get_mass_components(params['mass1'], params['mass2'])
-
-    # if tides are not components, get components
-    # change to max and min limits
-    l1,l2 = get_tidal_components(params['lambdatilde'],params['mass1'], params['mass2'])
-
-    #make new limit arrays which are used below
-    #rename the params we are using
-
-    ########################
+    # rtype is uniform 
 
     from pycbc.conversions import tau0_from_mass1_mass2
 
+	# returns dictionary of  M, q, lambda tilde, approximant.
     p = draw(rtype)
+
+	########################
+    # reparameterise here
+    ########################
+
+	if p['M'] and p['q']:
+	    # if mass limitd are not in components, get components 
+	    m1, m2 = get_mass_components(p.['M'], p.['q'])
+	    # m1_max, m2_max = get_mass_components(args.max[0], args.max[1])
+	
+	    # same for tides
+	    l1, l2 = get_tidal_components(p.['lambdatilde'],m1,m2)
+	    # l1_max, l2_max = get_tidal_components(args.max[2],m1_max,m2_max)
+	
+	    #make new limit arrays which are used below
+	    components = {'mass1':m1, 'mass2':m2, 'lambda1':l1, 'lambda2':l2}
+		p = components
+
+	print(len(p[list(p.keys())[0]]))
+	print(size)
+	exit(0)
+	
     if  len(p[list(p.keys())[0]]) > 0:
         t = tau0_from_mass1_mass2(p['mass1'], p['mass2'],
                                   args.tau0_cutoff_frequency)
@@ -574,7 +583,7 @@ def cdraw(rtype, ts, te):
     if len(p[list(p.keys())[0]]) == 0:
         return None
 
-	# p is params
+    # p is params
     return p
 
 tau0s = args.tau0_start
