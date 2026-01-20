@@ -272,6 +272,7 @@ class TriangleBank(object):
                 mmax = m
 
     def check_params(self, gen, params, threshold, force_add=False):
+
         num_added = 0
         total_num = len(tuple(params.values())[0])
         waveform_cache = []
@@ -287,6 +288,9 @@ class TriangleBank(object):
 
         for hp in waveform_cache:
             if hp is not None:
+                # gen is an initialised class
+                print(gen)
+                exit(0)
                 hp.gen = gen
                 hp.threshold = threshold
                 if hp not in self:
@@ -524,7 +528,7 @@ def draw(rtype):
         l = dists_joint.contains(params)
 
     params = {k: params[k][l] for k in params}
-	# M, q, lambda tilde, approximant.
+    # M, q, lambda tilde, approximant.
 
     return params
 
@@ -534,32 +538,33 @@ def cdraw(rtype, ts, te):
 
     from pycbc.conversions import tau0_from_mass1_mass2
 
-	# returns dictionary of  M, q, lambda tilde, approximant.
+    # returns dictionary of  M, q, lambda tilde, approximant.
     p = draw(rtype)
 
-	########################
+    ########################
     # reparameterise here
     ########################
 
-	if p['M'] and p['q']:
-	    # if mass limitd are not in components, get components 
-	    m1, m2 = get_mass_components(p.['M'], p.['q'])
-	    # m1_max, m2_max = get_mass_components(args.max[0], args.max[1])
-	
-	    # same for tides
-	    l1, l2 = get_tidal_components(p.['lambdatilde'],m1,m2)
-	    # l1_max, l2_max = get_tidal_components(args.max[2],m1_max,m2_max)
-	
-	    #make new limit arrays which are used below
-	    components = {'mass1':m1, 'mass2':m2, 'lambda1':l1, 'lambda2':l2}
-		p = components
-
-	print(len(p[list(p.keys())[0]]))
-	print(size)
-	exit(0)
-	
+    if 'M' in p and 'q' in p:
+        # if mass is not in components, get components 
+        mass1, mass2 = get_mass_components(p['M'], p['q'])
+        # m1_max, m2_max = get_mass_components(args.max[0], args.max[1])
+    
+        # same for tides
+        # l1, l2 = get_tidal_components(p['lambdatilde'],mass1,mass2)
+        # l1_max, l2_max = get_tidal_components(args.max[2],m1_max,m2_max)
+    
+        #make new arrays which are used below
+        # p = {'mass1':m1, 'mass2':m2, 'lambda1':l1, 'lambda2':l2}
+    else:
+        mass1 = p['mass1']
+        mass2 = p['mass2']
+        
+    # len(p[list(p.keys())[0]]) len 200
+    # size also 200
+    
     if  len(p[list(p.keys())[0]]) > 0:
-        t = tau0_from_mass1_mass2(p['mass1'], p['mass2'],
+        t = tau0_from_mass1_mass2(mass1, mass2,
                                   args.tau0_cutoff_frequency)
         l = (t < te) & (t > ts)
         p = {k: p[k][l] for k in p}
@@ -571,7 +576,7 @@ def cdraw(rtype, ts, te):
         p = {k: numpy.concatenate([p[k], tp[k]]) for k in p}
 
         if  len(p[list(p.keys())[0]]) > 0:
-            t = tau0_from_mass1_mass2(p['mass1'], p['mass2'],
+            t = tau0_from_mass1_mass2(mass1, mass2,
                                       args.tau0_cutoff_frequency)
             l = (t < te) & (t > ts)
             p = {k: p[k][l] for k in p}
@@ -605,6 +610,7 @@ while tau0s < args.tau0_end:
             break
 
         blen = len(bank)
+        #working from here 
         bank, uconv = bank.check_params(gen, params, args.minimal_match)
         logging.info("%s: Round (U): %s Size: %s conv: %s added: %s",
                      region, r, len(bank), uconv, len(bank) - blen)
