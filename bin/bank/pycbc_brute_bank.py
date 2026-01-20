@@ -152,6 +152,8 @@ class TriangleBank(object):
 
     def insert(self, hp):
 
+        # adding h plus waveform to array of waveforms 
+        # i.e. accepting into bank
         self.waveforms.append(hp)
 
         for b in [hp.tbin - 1, hp.tbin, hp.tbin + 1]:
@@ -272,7 +274,7 @@ class TriangleBank(object):
                 mmax = m
 
     def check_params(self, gen, params, threshold, force_add=False):
-
+        
         num_added = 0
         total_num = len(tuple(params.values())[0])
         waveform_cache = []
@@ -288,9 +290,8 @@ class TriangleBank(object):
 
         for hp in waveform_cache:
             if hp is not None:
+                # hp is none for M and q and works for component masses, tides
                 # gen is an initialised class
-                print(gen)
-                exit(0)
                 hp.gen = gen
                 hp.threshold = threshold
                 if hp not in self:
@@ -427,8 +428,15 @@ gen = GenUniformWaveform(args.buffer_length,
 bank = TriangleBank()
 
 def wf_wrapper(p):
+    # making the waveform here !!!!
+    # convert params here
+    waveform_params = get_waveform_params(p)
+    print(p)
     try:
         hp = gen.generate(**p)
+        print(**p)
+        print(hp)
+        exit(0)
         return hp
     except Exception as e:
         print(e)
@@ -447,6 +455,11 @@ def get_mass_components(M,q):
 def get_tidal_components(lambdatilde,mass1,mass2):
     l1, l2 = bilby.gw.conversion.lambda_tilde_to_lambda_1_lambda_2(lambdatilde, mass1, mass2)
     return l1,l2
+
+def get_waveform_params(params):
+    m1,m2 = get_mass_components(params['M'],params['q'])
+    l1,l2 = get_tidal_components(params['lambdatilde'], m1, m2)
+    return {'mass1':m1, 'mass2':m2, 'lambda1':l1, 'lambda2':l2}
 
 def draw(rtype):
 
@@ -475,6 +488,7 @@ def draw(rtype):
         if trail > len(bank):
             trail = len(bank)
         p = bank.keys()
+        # these keys are components
         p = [k for k in p if k not in fdict]
         p.remove('approximant')
         p.remove('f_lower')
@@ -604,13 +618,13 @@ while tau0s < args.tau0_end:
         # Standard Round
         r += 1
         params = cdraw('uniform', tau0s, tau0e)
+            
         if params is None:
             if len(bank) > 0:
                 go = False
             break
 
         blen = len(bank)
-        #working from here 
         bank, uconv = bank.check_params(gen, params, args.minimal_match)
         logging.info("%s: Round (U): %s Size: %s conv: %s added: %s",
                      region, r, len(bank), uconv, len(bank) - blen)
@@ -621,12 +635,12 @@ while tau0s < args.tau0_end:
         while ((kloop == 0) or (kconv / okconv) > .5) and len(bank) > 10:
             r += 1
             kloop += 1
+            # checking this function
             params = cdraw('kde', tau0s, tau0e)
             blen = len(bank)
             bank, kconv = bank.check_params(gen, params, args.minimal_match)
             logging.info("%s: Round (K) (%s): %s Size: %s conv: %s added: %s",
                          region, kloop, r, len(bank), kconv, len(bank) - blen)
-
 
             if uconv:
                 logging.info('Ratio of convergences: %2.3f' % (kconv / (uconv)))
