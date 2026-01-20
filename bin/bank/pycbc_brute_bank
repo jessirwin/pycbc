@@ -1,4 +1,4 @@
-#!~/.conda/envs/nds2utils/bin/python
+#!/home/jessica.irwin/.conda/envs/nds2utils/bin/python
 
 # Copyright (C) 2017 Alex Nitz, Duncan Macleod
 #               2022 Shichao Wu
@@ -34,6 +34,7 @@ from pycbc.waveform.spa_tmplt import spa_length_in_time
 from pycbc.distributions import read_params_from_config
 from pycbc.distributions.utils import draw_samples_from_config, prior_from_config
 from pycbc.io import HFile
+import bilby
 
 parser = argparse.ArgumentParser(description=__doc__)
 pycbc.add_common_pycbc_options(parser)
@@ -150,6 +151,7 @@ class TriangleBank(object):
         return i
 
     def insert(self, hp):
+
         self.waveforms.append(hp)
 
         for b in [hp.tbin - 1, hp.tbin, hp.tbin + 1]:
@@ -434,6 +436,14 @@ if args.input_file:
     bank, _ = bank.check_params(gen, params, args.minimal_match, 
                                 force_add=args.keep_entire_input_file)
 
+def get_mass_components(M,q):
+	m1, m2 = bilby.gw.conversion.total_mass_and_mass_ratio_to_component_masses(q,M)
+	return m1,m2
+
+def get_tidal_components(lambdatilde,mass1,mass2):
+	l1, l2 = bilby.gw.conversion.lambda_tilde_to_lambda_1_lambda_2(lambdatilde, mass1, mass2)
+	return l1,l2
+
 def draw(rtype):
 
     if rtype == 'uniform':
@@ -502,12 +512,34 @@ def draw(rtype):
             l &= mc > args.min_mchirp
 
     else:
+		# first call of component mass parameters
         l = dists_joint.contains(params)
 
     params = {k: params[k][l] for k in params}
     return params
 
 def cdraw(rtype, ts, te):
+
+	print(rtype)
+	exit(0)
+
+	########################
+	# reparameterise here
+	########################
+
+	# if masses are not components, get components 
+	# need to change max and min limits
+	m1,m2 = get_mass_components(params['mass1'], params['mass2'])
+
+	# if tides are not components, get components
+	# change to max and min limits
+	l1,l2 = get_tidal_components(params['lambdatilde'],params['mass1'], params['mass2'])
+
+	#make new limit arrays which are used below
+	#rename the params we are using
+
+	########################
+
     from pycbc.conversions import tau0_from_mass1_mass2
 
     p = draw(rtype)
