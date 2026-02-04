@@ -167,13 +167,11 @@ class Shrinker(object):
         l = self.data[-1]
         self.data = self.data[:-1]
         return l
-
-
+        
 class TriangleBank(object):
-    """A bank of templates that uses the triangle inequality to estimate
+    """ A bank of templates that uses the triangle inequality to estimate
     matches based on prior ones.
     """
-
     def __init__(self, p=None):
         self.waveforms = p if p is not None else []
         self.tbins = {}
@@ -189,35 +187,55 @@ class TriangleBank(object):
         return i
 
     def insert(self, hp):
-
-        # adding h plus waveform to array of waveforms
-        # i.e. accepting into bank
         self.waveforms.append(hp)
 
         for b in [hp.tbin - 1, hp.tbin, hp.tbin + 1]:
             if b in self.tbins:
-                self.tbins[b].append(len(self) - 1)
+                self.tbins[b].append(len(self)-1)
             else:
-                self.tbins[b] = [len(self) - 1]
+                self.tbins[b] = [len(self)-1]
 
     def __getitem__(self, index):
         return self.waveforms[index]
 
     def keys(self):
+        # print('in class')
+        # print(self.waveforms[0].params.keys())
+        # print('params')
+        # print(params.keys())
+        return list(params.keys()) #self.waveforms[0].params.keys()
+        
+    def component_keys(self):
+        # print('in class')
+        # print(self.waveforms[0].params.keys())
+        # print('params')
+        # print(params.keys())
         return self.waveforms[0].params.keys()
 
-    def key(self, k):
+    def component_key(self, k):
         return numpy.array([p.params[k] for p in self.waveforms])
 
+    def key(self, k):
+        # # p is a saved waveform
+        # # M is total mass 
+        # # so gets the data associated to a single key
+        # for p in self.waveforms:
+        #     print(p)
+        #     print(np.shape(self.wav
+        #     print(k)
+        #     print(numpy.array(p.params[k]))
+        #     exit(0)
+        return numpy.array(params[k])
+
     def sigma_match_bound(self, sig):
-        if not hasattr(self, "sigma"):
+        if not hasattr(self, 'sigma'):
             self.sigma = None
         if self.sigma is None or len(self.sigma) != len(self):
             self.sigma = numpy.array([h.s for h in bank.waveforms])
         return numpy.minimum(sig / self.sigma, self.sigma / sig)
 
     def range(self):
-        if not hasattr(self, "r"):
+        if not hasattr(self, 'r'):
             self.r = None
         if self.r is None or len(self.r) != len(self):
             self.r = numpy.arange(0, len(self))
@@ -228,7 +246,6 @@ class TriangleBank(object):
 
         class dumb(object):
             pass
-
         for c in cull:
             d = dumb()
             d.tau0 = self.waveforms[c].tau0
@@ -237,7 +254,7 @@ class TriangleBank(object):
             self.waveforms[c] = d
 
     def tau0(self):
-        if not hasattr(self, "t0"):
+        if not hasattr(self, 't0'):
             self.t0 = None
         if self.t0 is None or len(self.t0) != len(self):
             self.t0 = numpy.array([h.tau0 for h in self])
@@ -246,7 +263,7 @@ class TriangleBank(object):
     def __contains__(self, hp):
         mmax = 0
         mnum = 0
-        # Apply sigmas maximal match.
+        #Apply sigmas maximal match.
         if args.enable_sigma_bound:
             matches = self.sigma_match_bound(hp.s)
             r = self.range()[matches > hp.threshold]
@@ -256,11 +273,12 @@ class TriangleBank(object):
 
         msig = len(r)
 
-        # Apply tau0 threshold
+        #Apply tau0 threshold
         if args.tau0_threshold:
             hp.tau0 = pycbc.conversions.tau0_from_mass1_mass2(
-                hp.params["mass1"], hp.params["mass2"], args.tau0_cutoff_frequency
-            )
+                                            hp.params['mass1'],
+                                            hp.params['mass2'],
+                                            args.tau0_cutoff_frequency)
             hp.tbin = int(hp.tau0 / args.tau0_threshold)
 
             if hp.tbin in self.tbins:
@@ -271,28 +289,27 @@ class TriangleBank(object):
         mtau = len(r)
 
         # Try to do some actual matches
-        inc = Shrinker(r * 1)
+        inc = Shrinker(r*1)
         while 1:
             j = inc.pop()
             if j is None:
                 hp.matches = matches[r]
                 hp.indices = r
-                logging.info(
-                    "TADD MaxMatch:%0.3f Size:%i "
-                    "AfterSigma:%i AfterTau0:%i Matches:%i"
-                    % (mmax, len(self), msig, mtau, mnum)
-                )
+                logging.info("TADD MaxMatch:%0.3f Size:%i "
+                             "AfterSigma:%i AfterTau0:%i Matches:%i"
+                              % (mmax, len(self), msig, mtau, mnum))
                 return False
 
             hc = self[j]
 
             # Defensive initialization if matches/indices are missing
-            if not hasattr(hc, "matches"):
+            if not hasattr(hc, 'matches'):
                 hc.matches = numpy.empty(len(self))
                 hc.matches[:] = numpy.nan
 
-            if not hasattr(hc, "indices"):
+            if not hasattr(hc, 'indices'):
                 hc.indices = numpy.arange(len(self))
+
 
             m = hp.gen.match(hp, hc)
             matches[j] = m
@@ -313,33 +330,29 @@ class TriangleBank(object):
                 mmax = m
 
     def check_params(self, gen, params, threshold, force_add=False):
-
         num_added = 0
         total_num = len(tuple(params.values())[0])
         waveform_cache = []
 
         pool = pycbc.pool.choose_pool(args.nprocesses)
         for return_wf in pool.imap_unordered(
-            wf_wrapper,
-            ({k: params[k][idx] for k in params} for idx in range(total_num)),
-        ):
+                wf_wrapper,
+                ({k: params[k][idx] for k in params} for idx in range(total_num))
+            ):
             waveform_cache += [return_wf]
         pool.close_pool()
         del pool
 
+        idx_tracker = 0
+        indices_kept = np.array([])
+
         for hp in waveform_cache:
-            # hp params is a waveform (freq. series)
-            # hp.params should be M q etc but then we need it to be in components for the self part.
-            # need to fix this part.
-            # can't decide if they need to be components or M q etc.
             if hp is not None:
-                # hp is none for M and q and works for component masses, tides
-                # gen is an initialised class
                 hp.gen = gen
                 hp.threshold = threshold
-                # need hp here to still be components. If accepted then turn back to 
                 if hp not in self:
                     num_added += 1
+                    indices_kept = np.append(indices_kept, idx_tracker)
                     self.insert(hp)
                 elif force_add:
                     num_added += 1
@@ -347,15 +360,12 @@ class TriangleBank(object):
             else:
                 logging.info("Waveform generation failed!")
                 continue
+            idx_tracker += 1
 
-        # bank returned here, but not used in function!!! don't get it
-        # filling bank here with stuff, bank length now 200
-        # bank is still an object.
-        
-        # hp.params = params
-        
-        return bank, num_added / total_num
+        print('len idxs kept')
+        print(len(indices_kept))
 
+        return bank, num_added / total_num, indices_kept.astype(int)
 
 def decimate_frequency_domain(template, target_df):
     """
@@ -463,9 +473,7 @@ class GenUniformWaveform(object):
         hp[self.kmin : -1] *= self.w
         s = float(1.0 / pycbc.filter.sigmasq(hp, low_frequency_cutoff=f) ** 0.5)
         hp *= s
-        ################ this is important
-        # hp.params = kwds
-        ################ move this elsewhere
+        hp.params = kwds
         hp.view = hp[self.kmin : -1]
         hp.s = (1.0 / s) ** 2.0
         
@@ -493,10 +501,9 @@ gen = GenUniformWaveform(
 # initialise bank
 bank = TriangleBank()
 
-
-def wf_wrapper(params):
+def wf_wrapper(p):
     try:
-        hp = gen.generate(**params)
+        hp = gen.generate(**p)
         return hp
     except Exception as e:
         print(e)
@@ -507,7 +514,7 @@ if args.input_file:
     # not true for now
     f = HFile(args.input_file, "r")
     params = {k: f[k][:] for k in f}
-    bank, _ = bank.check_params(
+    bank, _, idxs = bank.check_params(
         gen, params, args.minimal_match, force_add=args.keep_entire_input_file
     )
 
@@ -524,7 +531,7 @@ def get_tidal_components(lambdatilde, mass1, mass2):
     return l1, l2
 
 
-def get_waveform_params(params):
+def get_waveform_params_dict(params):
     m1, m2 = get_mass_components(params["M"], params["q"])
     l1, l2 = get_tidal_components(params["lambdatilde"], m1, m2)
     # adding approximant too!!!!
@@ -536,8 +543,20 @@ def get_waveform_params(params):
         "approximant": params["approximant"],
     }
 
+def get_waveform_params(params):
+    m1, m2 = get_mass_components(params[0], params[1])
+    l1, l2 = get_tidal_components(params[2], m1, m2)
+    # adding approximant too!!!!
+    return np.array(m1,m2,l1,l2)
 
-def draw(rtype):
+def get_bank_params(params):
+    M = bilby.gw.conversion.component_masses_to_total_mass(params[0], params[1])
+    q = bilby.gw.conversion.component_masses_to_mass_ratio(params[0], params[1])
+    lambdatilde = bilby.gw.conversion.lambda_1_lambda_2_to_lambda_tilde(params[2], params[3], params[0], params[1])
+    # adding approximant too!!!!
+    return np.array([M,q,lambdatilde])
+
+def draw(rtype, reparams):
 
     if rtype == "uniform":
         if args.input_config is None:
@@ -548,8 +567,6 @@ def draw(rtype):
                 name: numpy.random.uniform(pmin, pmax, size=size)
                 for name, pmin, pmax in zip(args.params, args.min, args.max)
             }
-            print(rtype)
-            print(params.keys())
         else:
             # `draw_samples_from_config` has its own fixed seed, so must overwrite it.
             random_seed = numpy.random.randint(low=0, high=2**32 - 1)
@@ -566,18 +583,23 @@ def draw(rtype):
         trail = 300
         if trail > len(bank):
             trail = len(bank)
-        p = bank.keys()
+        p_reparam = list(reparams.keys())
+        p = bank.component_keys()
         # these keys are components
         p = [k for k in p if k not in fdict]
         p.remove("approximant")
-        print("removing approx")
-        p.remove("f_lower")
+        p_reparam.remove("f_lower")
         if args.input_config is not None:
+            # not relevant
             p = variable_args
-        bdata = numpy.array([bank.key(k)[-trail:] for k in p])
-        kde = gaussian_kde(bdata)
+        # bdata = numpy.array([reparams.key(k)[-trail:] for k in p])
+        # for k in p:
+        #     bdata = np.array(bank.component_key(k)[-trail:])
+        bdata = numpy.array([bank.component_key(k)[-trail:] for k in p])
+        bdata_reparam = get_bank_params(bdata)
+        kde = gaussian_kde(bdata_reparam)
         points = kde.resample(size=size)
-        params = {k: v for k, v in zip(p, points)}
+        params = {k: v for k, v in zip(p_reparam, points)}
 
         # Add `static_args` back, some transformations may need them.
         if args.input_config is not None and static_args is not None:
@@ -585,6 +607,7 @@ def draw(rtype):
                 params[k] = numpy.array([static_args[k]] * size)
 
         # Apply `waveform_transforms` defined in the .ini file to samples.
+        # not applicable
         if args.input_config is not None and waveform_transforms is not None:
             params = transforms.apply_transforms(params, waveform_transforms)
 
@@ -598,35 +621,31 @@ def draw(rtype):
         # this is true for us rn
         # keep everything in boundaries
 
-        print(args.params)
-        print(args.min)
-        print(args.max)
         for name, pmin, pmax in zip(args.params, args.min, args.max):
             # key error here idk why
-            print(name)
             nl = (params[name] < pmax) & (params[name] > pmin)
             l = (nl & l) if l is not None else nl
 
-        if args.max_q:
-            q = numpy.maximum(
-                params["mass1"] / params["mass2"], params["mass2"] / params["mass1"]
-            )
-            l &= q < args.max_q
+        # if args.max_q:
+        #     q = numpy.maximum(
+        #         params["mass1"] / params["mass2"], params["mass2"] / params["mass1"]
+        #     )
+        #     l &= q < args.max_q
 
-        if args.max_mtotal:
-            l &= params["mass1"] + params["mass2"] < args.max_mtotal
+        # if args.max_mtotal:
+        #     l &= params["mass1"] + params["mass2"] < args.max_mtotal
 
-        if args.max_mchirp:
-            from pycbc.conversions import mchirp_from_mass1_mass2
+        # if args.max_mchirp:
+        #     from pycbc.conversions import mchirp_from_mass1_mass2
 
-            mc = mchirp_from_mass1_mass2(params["mass1"], params["mass2"])
-            l &= mc < args.max_mchirp
+        #     mc = mchirp_from_mass1_mass2(params["mass1"], params["mass2"])
+        #     l &= mc < args.max_mchirp
 
-        if args.min_mchirp:
-            from pycbc.conversions import mchirp_from_mass1_mass2
+        # if args.min_mchirp:
+        #     from pycbc.conversions import mchirp_from_mass1_mass2
 
-            mc = mchirp_from_mass1_mass2(params["mass1"], params["mass2"])
-            l &= mc > args.min_mchirp
+        #     mc = mchirp_from_mass1_mass2(params["mass1"], params["mass2"])
+        #     l &= mc > args.min_mchirp
 
     else:
         # first call of component mass parameters
@@ -635,55 +654,68 @@ def draw(rtype):
     params = {k: params[k][l] for k in params}
     # M, q, lambda tilde, approximant.
 
+    # len is 200 here always
+    
     return params
 
 
-def cdraw(rtype, ts, te):
+def cdraw(rtype, ts, te, reparams):
 
     # rtype is uniform
 
     from pycbc.conversions import tau0_from_mass1_mass2
 
     # returns dictionary of  M, q, lambda tilde, approximant.
-    p = draw(rtype)
+    # draws points in the bank in the M, q, lambda tilde space
+    p = draw(rtype,reparams)
 
-    ########################
-    # reparameterise here
-    ########################
-
+    # getting component masses to calculate taus
     if "M" in p and "q" in p:
         # if mass is not in components, get components
         mass1, mass2 = get_mass_components(p["M"], p["q"])
-        # m1_max, m2_max = get_mass_components(args.max[0], args.max[1])
-
-        # same for tides
-        # l1, l2 = get_tidal_components(p['lambdatilde'],mass1,mass2)
-        # l1_max, l2_max = get_tidal_components(args.max[2],m1_max,m2_max)
-
-        # make new arrays which are used below
-        # p = {'mass1':m1, 'mass2':m2, 'lambda1':l1, 'lambda2':l2}
     else:
         mass1 = p["mass1"]
         mass2 = p["mass2"]
-
+        
     # len(p[list(p.keys())[0]]) len 200
     # size also 200
 
+    # calculate taus and start filling 
     if len(p[list(p.keys())[0]]) > 0:
         t = tau0_from_mass1_mass2(mass1, mass2, args.tau0_cutoff_frequency)
+        # boolean array
         l = (t < te) & (t > ts)
-        p = {k: p[k][l] for k in p}
+        for k in p:
+            p[k] = p[k][l]
 
     i = 0
     while len(p[list(p.keys())[0]]) < size:
 
-        tp = draw(rtype)
-        p = {k: numpy.concatenate([p[k], tp[k]]) for k in p}
+        tp = draw(rtype, reparams)
+        for k in p:
+            # loops through the different parameters
+            # i.e. starts on total mass
+            # adds total mass drawn from tp to p
+            p[k] = numpy.concatenate([p[k], tp[k]])
+
+        # need to get component masses from the updated p
+        if "M" in p and "q" in p:
+            # if mass is not in components, get components
+            mass1, mass2 = get_mass_components(p["M"], p["q"])
+        else:
+            mass1 = p["mass1"]
+            mass2 = p["mass2"]
 
         if len(p[list(p.keys())[0]]) > 0:
             t = tau0_from_mass1_mass2(mass1, mass2, args.tau0_cutoff_frequency)
+            # think the error was here, the boolean array is l, which is calculated given t
+            # which is calculated given mass1 and mass2, which we hadn't recalculated since the start
+            # of the function. Need to recalculate given p has been updated with tp, and then run 
+            # this similar piece of code.
             l = (t < te) & (t > ts)
-            p = {k: p[k][l] for k in p}
+            #p = {k: p[k][l] for k in p}
+            for k in p:
+                p[k] = p[k][l]
 
         i += 1
         if i > args.placement_iterations:
@@ -700,36 +732,46 @@ tau0s = args.tau0_start
 tau0e = tau0s + args.tau0_crawl
 
 go = True
+params = {}
 
-# bank here is still initialised class
+bank_params = {'M':[], 'q':[], 'lambdatilde':[]}
 
 region = 0
+
+import time
+start_time = time.time()
 while tau0s < args.tau0_end:
     conv = 1
     r = 0
     while conv > tolerance:
         # Standard Round
         r += 1
-        params = cdraw("uniform", tau0s, tau0e)
-
+        params = cdraw("uniform", tau0s, tau0e, params)
         if params is None:
             if len(bank) > 0:
                 go = False
             break
-
-            
+        
         blen = len(bank)
         # len bank is 0
-        
         # change bank keys
         # params are M, q, lambdatilde
         # new params
-        component_params = get_waveform_params(params)
-    
-        bank, uconv = bank.check_params(gen, component_params, args.minimal_match)
-        print('bank')
-        print(bank)
-        exit(0)
+        params['f_lower'] = args.low_frequency_cutoff
+        component_params = get_waveform_params_dict(params)
+
+        # build bank given components so that we check waveform
+        bank, uconv, keep_idxs = bank.check_params(gen, component_params, args.minimal_match)
+
+        for key in ('M', 'q', 'lambdatilde'):
+            if len(bank_params['M']) == 0:
+                #print('bank params empty')
+                bank_params[key] = np.take(np.array(params[key]), keep_idxs)
+            else:
+            # update bank params with more indices of the next set of params
+                bank_params[key] = np.append(bank_params[key], np.take(np.array(params[key]), keep_idxs))
+        
+        # bank still object
         logging.info(
             "%s: Round (U): %s Size: %s conv: %s added: %s",
             region,
@@ -750,13 +792,35 @@ while tau0s < args.tau0_end:
             # GO FROM HERE
             # bank keys should be M, q, lambdatilde not
             # m1 m2 l1 l2
-            # need to fix this somewhere.
+            params['f_lower'] = args.low_frequency_cutoff
+            #params = cdraw("kde", tau0s, tau0e, params)
+            new_params = cdraw("uniform", tau0s, tau0e, params)
 
-            params = cdraw("kde", tau0s, tau0e)
+            if new_params is not None:
+                params = new_params
+            else:
+                # Handle the case where no parameters were drawn
+                if len(bank) > 0:
+                    go = False
+                break
+                
             blen = len(bank)
-            print(params)
-            bank, kconv = bank.check_params(gen, params, args.minimal_match)
+
+            component_params = get_waveform_params_dict(params)
+            bank, kconv, keep_idxs = bank.check_params(gen, component_params, args.minimal_match)
+
+            for key in ('M', 'q', 'lambdatilde'):
+                if len(bank_params[key]) == 0:
+                    # print('bank params empty')
+                    bank_params[key] = np.take(np.array(params[key]), keep_idxs)
+                else:
+                    # update bank params with more indices of the next set of params
+                    # print('bank params exists')
+                    bank_params[key] = np.append(bank_params[key], np.take(np.array(params[key]), keep_idxs))
+
+            # need to get bank.key to work!!!
             # bank convert
+            
             logging.info(
                 "%s: Round (K) (%s): %s Size: %s conv: %s added: %s",
                 region,
@@ -770,6 +834,7 @@ while tau0s < args.tau0_end:
             if uconv:
                 logging.info("Ratio of convergences: %2.3f" % (kconv / (uconv)))
                 logging.info("Progress: {:.0%} completed".format(tau0e / args.tau0_end))
+                print('time taken', time.time() - start_time)
 
             if kloop == 1:
                 okconv = kconv
@@ -777,6 +842,21 @@ while tau0s < args.tau0_end:
             if kconv <= tolerance:
                 conv = kconv
                 break
+                
+            # print('should match:')
+            # print(len(bank))
+            # print(len(bank_params['M']))
+            # print('above?')
+            
+            if len(bank)>int(1e3):
+                break
+        if len(bank)>int(1e3):
+            break
+    if len(bank)>int(1e3):
+        break
+                
+
+
 
     bank.culltau0(tau0s - args.tau0_threshold * 2.0)
     logging.info("Region Done %3.1f-%3.1f, %s stored", tau0s, tau0e, bank.activelen())
@@ -784,10 +864,38 @@ while tau0s < args.tau0_end:
     tau0s += args.tau0_crawl / 2
     tau0e += args.tau0_crawl / 2
 
+    #break
+    
+# o = HFile(args.output_file, "w")
+# o.attrs["minimal_match"] = args.minimal_match
+# for k in keys:
+
+#     # the code will get to here and will stop working
+#     # so need to fix this
+    
+#     val = bank.key(k)
+#     print('number of templates', len(val))
+#     if val.dtype.char == "U":
+#         val = val.astype("bytes")
+#     o[k] = val
+# o.close()
+
 o = HFile(args.output_file, "w")
 o.attrs["minimal_match"] = args.minimal_match
-for k in bank.keys():
-    val = bank.key(k)
+for k in list(bank_params.keys()):
+
+    # the code will get to here and will stop working
+    # so need to fix this
+    
+    val = bank_params[k]
+    print('number of templates', len(val))
     if val.dtype.char == "U":
         val = val.astype("bytes")
     o[k] = val
+o.close()
+
+
+
+print('end of bank creation')
+exit(0)
+
