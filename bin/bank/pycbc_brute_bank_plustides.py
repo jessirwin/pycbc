@@ -361,10 +361,7 @@ class TriangleBank(object):
                 logging.info("Waveform generation failed!")
                 continue
             idx_tracker += 1
-
-        print('len idxs kept')
-        print(len(indices_kept))
-
+            
         return bank, num_added / total_num, indices_kept.astype(int)
 
 def decimate_frequency_domain(template, target_df):
@@ -765,7 +762,6 @@ while tau0s < args.tau0_end:
 
         for key in ('M', 'q', 'lambdatilde'):
             if len(bank_params['M']) == 0:
-                #print('bank params empty')
                 bank_params[key] = np.take(np.array(params[key]), keep_idxs)
             else:
             # update bank params with more indices of the next set of params
@@ -841,22 +837,7 @@ while tau0s < args.tau0_end:
 
             if kconv <= tolerance:
                 conv = kconv
-                break
-                
-            # print('should match:')
-            # print(len(bank))
-            # print(len(bank_params['M']))
-            # print('above?')
-            
-            if len(bank)>int(1e3):
-                break
-        if len(bank)>int(1e3):
-            break
-    if len(bank)>int(1e3):
-        break
-                
-
-
+                break         
 
     bank.culltau0(tau0s - args.tau0_threshold * 2.0)
     logging.info("Region Done %3.1f-%3.1f, %s stored", tau0s, tau0e, bank.activelen())
@@ -864,7 +845,6 @@ while tau0s < args.tau0_end:
     tau0s += args.tau0_crawl / 2
     tau0e += args.tau0_crawl / 2
 
-    #break
     
 # o = HFile(args.output_file, "w")
 # o.attrs["minimal_match"] = args.minimal_match
@@ -893,8 +873,6 @@ for k in list(bank_params.keys()):
         val = val.astype("bytes")
     o[k] = val
 o.close()
-
-
 
 print('end of bank creation')
 exit(0)
